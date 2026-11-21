@@ -1,0 +1,24 @@
+{
+  "name": "lunaire",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c olive,cyan \"npm run dev -w @lunaire/api\" \"npm run dev -w @lunaire/web\"",
+    "build": "npm run build -w @lunaire/web && npm run build -w @lunaire/api",
+    "start": "npm run start:prod -w @lunaire/api",
+    "test": "npm run test -w @lunaire/api && npm run test -w @lunaire/web",
+    "db:migrate": "npm run db:migrate -w @lunaire/api",
+    "db:migrate:dev": "npm run db:migrate:dev -w @lunaire/api",
+    "db:seed": "npm run db:seed -w @lunaire/api",
+    "db:generate": "npm run db:generate -w @lunaire/api",
+    "db:studio": "npm run db:studio -w @lunaire/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

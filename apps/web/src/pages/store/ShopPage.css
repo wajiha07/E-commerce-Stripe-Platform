@@ -1,0 +1,41 @@
+.shop {
+  padding: var(--space-7) 0;
+}
+
+.shop__header h1 {
+  margin: 0;
+  font-size: clamp(2.4rem, 5vw, 3.5rem);
+}
+
+.shop__layout {
+  display: grid;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+@media (min-width: 900px) {
+  .shop__layout {
+    grid-template-columns: 240px 1fr;
+  }
+}
+
+.shop__filters {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.check {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.92rem;
+}
+
+.shop__pager {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
