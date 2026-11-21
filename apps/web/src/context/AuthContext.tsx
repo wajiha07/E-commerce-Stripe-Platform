@@ -16,7 +16,7 @@ export type User = {
   firstName: string;
   lastName: string;
   phone?: string | null;
-  role: 'CUSTOMER' | 'ADMIN' | 'MANAGER' | 'SUPPORT';
+  role: 'CUSTOMER' | 'SELLER' | 'ADMIN' | 'MANAGER' | 'SUPPORT';
 };
 
 type AuthContextValue = {
@@ -32,6 +32,7 @@ type AuthContextValue = {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   isStaff: boolean;
+  isSeller: boolean;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -124,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       refreshUser,
       isStaff: !!user && ['ADMIN', 'MANAGER', 'SUPPORT'].includes(user.role),
+      isSeller: user?.role === 'SELLER',
     }),
     [user, loading, login, register, logout, refreshUser],
   );

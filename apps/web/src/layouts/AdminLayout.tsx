@@ -8,6 +8,7 @@ const links = [
   ['categories', 'Categories'],
   ['orders', 'Orders'],
   ['customers', 'Customers'],
+  ['sellers', 'Sellers'],
   ['payments', 'Payments'],
   ['coupons', 'Coupons'],
   ['shipping', 'Shipping'],

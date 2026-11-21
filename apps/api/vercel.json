@@ -1,0 +1,6 @@
+{
+  "framework": "nestjs",
+  "installCommand": "npm install --include=dev",
+  "buildCommand": "npx prisma generate && npx nest build",
+  "regions": ["iad1"]
+}

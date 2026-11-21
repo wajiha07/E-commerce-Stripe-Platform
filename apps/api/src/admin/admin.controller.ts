@@ -22,6 +22,7 @@ import { ShippingService } from '../shipping/shipping.service';
 import { CmsService } from '../cms/cms.service';
 import { ReportsService } from '../reports/reports.service';
 import { SettingsService } from '../settings/settings.service';
+import { SellersService } from '../sellers/sellers.service';
 import { CreateProductDto, ProductQueryDto, UpdateProductDto } from '../catalog/dto/product.dto';
 import { CreateCategoryDto, UpdateCategoryDto } from '../categories/dto/category.dto';
 import { UpdateOrderStatusDto } from '../orders/dto/checkout.dto';
@@ -78,11 +79,17 @@ export class AdminController {
     private cms: CmsService,
     private reports: ReportsService,
     private settings: SettingsService,
+    private sellersService: SellersService,
   ) {}
 
   @Get('dashboard')
   dashboard() {
     return this.reports.dashboard();
+  }
+
+  @Get('sellers')
+  listSellers() {
+    return this.sellersService.listAdmin();
   }
 
   @Get('reports/sales')

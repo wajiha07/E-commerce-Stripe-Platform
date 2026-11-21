@@ -176,6 +176,21 @@ export function CheckoutPage() {
     );
   }
 
+  if (cart.data?.multiSeller && !payment) {
+    return (
+      <div className="container" style={{ padding: '4rem 0' }}>
+        <h1>One seller per checkout</h1>
+        <p className="muted">
+          Your bag has items from multiple sellers. Remove items until one seller remains, then
+          checkout. (Stripe Connect destination charges are single-seller for now.)
+        </p>
+        <Link className="btn" to="/cart">
+          Review bag
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="container" style={{ padding: '3rem 0' }}>
       <h1 style={{ marginTop: 0 }}>Checkout</h1>

@@ -1,4 +1,4 @@
-import { DiscountType, PrismaClient, Role } from '@prisma/client';
+import { DiscountType, PrismaClient, Role, SellerStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -17,6 +17,7 @@ async function main() {
   await prisma.productImage.deleteMany();
   await prisma.productVariant.deleteMany();
   await prisma.product.deleteMany();
+  await prisma.seller.deleteMany();
   await prisma.category.deleteMany();
   await prisma.coupon.deleteMany();
   await prisma.shippingMethod.deleteMany();
@@ -66,6 +67,32 @@ async function main() {
       role: Role.CUSTOMER,
       phone: '+1 555 0100',
       cart: { create: {} },
+    },
+  });
+
+  const sellerUser = await prisma.user.create({
+    data: {
+      email: 'seller@lunaire.test',
+      passwordHash,
+      firstName: 'Sofia',
+      lastName: 'Seller',
+      role: Role.SELLER,
+      phone: '+1 555 0200',
+    },
+  });
+
+  const houseSeller = await prisma.seller.create({
+    data: {
+      userId: sellerUser.id,
+      storeName: 'LUNAIRE Atelier',
+      storeSlug: 'lunaire-atelier',
+      description: 'House-curated contemporary fashion',
+      stripeAccountId: 'acct_mock_lunaire',
+      status: SellerStatus.ACTIVE,
+      chargesEnabled: true,
+      payoutsEnabled: true,
+      detailsSubmitted: true,
+      platformFeePercent: 10,
     },
   });
 
@@ -401,6 +428,7 @@ async function main() {
         description: p.description,
         story: (p as any).story,
         categoryId: p.categoryId,
+        sellerId: houseSeller.id,
         basePrice: p.basePrice,
         compareAt: (p as any).compareAt,
         isFeatured: p.isFeatured,
@@ -525,6 +553,7 @@ async function main() {
 
   console.log('Seed complete.');
   console.log('Admin:', admin.email, 'Password123!');
+  console.log('Seller: seller@lunaire.test Password123!');
   console.log('Customer: customer@lunaire.test Password123!');
 }
 

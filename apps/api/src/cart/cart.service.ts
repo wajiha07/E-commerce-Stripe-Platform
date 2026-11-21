@@ -11,7 +11,20 @@ export class CartService {
         variant: {
           include: {
             product: {
-              include: { images: { orderBy: { sortOrder: 'asc' as const }, take: 1 } },
+              include: {
+                images: { orderBy: { sortOrder: 'asc' as const }, take: 1 },
+                seller: {
+                  select: {
+                    id: true,
+                    storeName: true,
+                    storeSlug: true,
+                    stripeAccountId: true,
+                    chargesEnabled: true,
+                    status: true,
+                    platformFeePercent: true,
+                  },
+                },
+              },
             },
           },
         },
@@ -66,30 +79,50 @@ export class CartService {
           name: item.variant.product.name,
           slug: item.variant.product.slug,
           imageUrl: item.variant.product.images[0]?.url ?? null,
+          sellerId: item.variant.product.sellerId,
+          seller: item.variant.product.seller,
         },
       };
     });
     const subtotal = items.reduce((s: number, i: any) => s + i.lineTotal, 0);
+    const sellerIds = [...new Set(items.map((i: any) => i.product.sellerId).filter(Boolean))];
     return {
       id: (cart as any).id,
       guestId: (cart as any).guestId,
       items,
       subtotal,
       itemCount: items.reduce((s: number, i: any) => s + i.quantity, 0),
+      sellerId: sellerIds.length === 1 ? sellerIds[0] : null,
+      multiSeller: sellerIds.length > 1,
     };
   }
 
   async addItem(userId: string | undefined, guestId: string | undefined, variantId: string, quantity: number) {
     const variant = await this.prisma.productVariant.findUnique({
       where: { id: variantId },
-      include: { product: true },
+      include: { product: { include: { seller: true } } },
     });
     if (!variant || !variant.isActive || !variant.product.isActive) {
       throw new NotFoundException('Variant not found');
     }
+    if (!variant.product.sellerId) {
+      throw new BadRequestException('Product is not assigned to a seller');
+    }
     if (variant.stock < quantity) throw new BadRequestException('Insufficient stock');
 
     const cart = await this.ensureCart(userId, guestId);
+    const existingItems = await this.prisma.cartItem.findMany({
+      where: { cartId: cart.id },
+      include: { variant: { include: { product: true } } },
+    });
+    const otherSeller = existingItems.find(
+      (i) => i.variant.product.sellerId && i.variant.product.sellerId !== variant.product.sellerId,
+    );
+    if (otherSeller) {
+      throw new BadRequestException(
+        'Cart can only contain products from one seller. Clear your bag or checkout first.',
+      );
+    }
     const existing = await this.prisma.cartItem.findUnique({
       where: { cartId_variantId: { cartId: cart.id, variantId } },
     });

@@ -22,21 +22,32 @@ export class PaymentsService {
   ) {
     const key = this.config.get<string>('STRIPE_SECRET_KEY') || '';
     this.publishableKey = this.config.get<string>('STRIPE_PUBLISHABLE_KEY') || '';
-    this.mockMode = !key || key.includes('placeholder');
+    this.mockMode =
+      !key || key.includes('placeholder') || key.includes('_mock_');
     if (!this.mockMode) {
       this.stripe = new Stripe(key, { apiVersion: '2025-02-24.acacia' });
     }
   }
 
-  async createPaymentIntent(orderId: string, amount: number) {
+  async createPaymentIntent(
+    orderId: string,
+    amount: number,
+    opts: {
+      stripeAccountId: string;
+      applicationFeeAmount: number;
+    },
+  ) {
     const amountCents = Math.round(amount * 100);
+    const feeCents = Math.round(opts.applicationFeeAmount * 100);
 
-    if (this.mockMode) {
+    if (this.mockMode || opts.stripeAccountId.startsWith('acct_mock_')) {
       const mockId = `pi_mock_${orderId}`;
       await this.prisma.payment.update({
         where: { orderId },
         data: {
           stripePaymentIntentId: mockId,
+          stripeAccountId: opts.stripeAccountId,
+          applicationFeeAmount: opts.applicationFeeAmount,
           status: PaymentStatus.REQUIRES_ACTION,
         },
       });
@@ -52,12 +63,18 @@ export class PaymentsService {
       currency: 'usd',
       metadata: { orderId },
       automatic_payment_methods: { enabled: true },
+      application_fee_amount: feeCents,
+      transfer_data: {
+        destination: opts.stripeAccountId,
+      },
     });
 
     await this.prisma.payment.update({
       where: { orderId },
       data: {
         stripePaymentIntentId: intent.id,
+        stripeAccountId: opts.stripeAccountId,
+        applicationFeeAmount: opts.applicationFeeAmount,
         status: PaymentStatus.REQUIRES_ACTION,
       },
     });
@@ -101,12 +118,34 @@ export class PaymentsService {
       }
     }
 
+    if (event.type === 'account.updated') {
+      const account = event.data.object as Stripe.Account;
+      const seller = await this.prisma.seller.findFirst({
+        where: { stripeAccountId: account.id },
+      });
+      if (seller) {
+        let status = seller.status;
+        if (account.charges_enabled && account.payouts_enabled) status = 'ACTIVE' as any;
+        else if (account.requirements?.disabled_reason) status = 'RESTRICTED' as any;
+        else if (!account.details_submitted) status = 'ONBOARDING' as any;
+
+        await this.prisma.seller.update({
+          where: { id: seller.id },
+          data: {
+            chargesEnabled: !!account.charges_enabled,
+            payoutsEnabled: !!account.payouts_enabled,
+            detailsSubmitted: !!account.details_submitted,
+            status,
+          },
+        });
+      }
+    }
+
     return { received: true };
   }
 
-  /** Dev helper when Stripe CLI is not available */
   async mockConfirm(orderId: string) {
-    if (!this.mockMode && process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'production' || !this.mockMode) {
       throw new BadRequestException('Mock confirm disabled');
     }
     const payment = await this.prisma.payment.findUnique({ where: { orderId } });
@@ -163,16 +202,27 @@ export class PaymentsService {
       include: { payment: true, items: true },
     });
     if (!order?.payment) throw new NotFoundException('Payment not found');
-    if (order.payment.status !== PaymentStatus.SUCCEEDED && order.payment.status !== PaymentStatus.PARTIALLY_REFUNDED) {
+    if (
+      order.payment.status !== PaymentStatus.SUCCEEDED &&
+      order.payment.status !== PaymentStatus.PARTIALLY_REFUNDED
+    ) {
       throw new BadRequestException('Order is not refundable');
     }
 
-    const refundAmount = amount ?? Number(order.payment.amount) - Number(order.payment.refundedAmount);
+    const refundAmount =
+      amount ?? Number(order.payment.amount) - Number(order.payment.refundedAmount);
 
-    if (!this.mockMode && order.payment.stripePaymentIntentId && !order.payment.stripePaymentIntentId.startsWith('pi_mock')) {
+    if (
+      !this.mockMode &&
+      order.payment.stripePaymentIntentId &&
+      !order.payment.stripePaymentIntentId.startsWith('pi_mock')
+    ) {
+      // Reverse transfer / refund on Connect destination charge
       await this.stripe!.refunds.create({
         payment_intent: order.payment.stripePaymentIntentId,
         amount: Math.round(refundAmount * 100),
+        reverse_transfer: true,
+        refund_application_fee: true,
       });
     }
 
@@ -208,7 +258,17 @@ export class PaymentsService {
   async list(page = 1, limit = 20) {
     const [items, total] = await Promise.all([
       this.prisma.payment.findMany({
-        include: { order: { select: { orderNumber: true, email: true, status: true } } },
+        include: {
+          order: {
+            select: {
+              orderNumber: true,
+              email: true,
+              status: true,
+              sellerId: true,
+              platformFeeAmount: true,
+            },
+          },
+        },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -228,6 +288,15 @@ export class PaymentsService {
       ...p,
       amount: Number(p.amount),
       refundedAmount: Number(p.refundedAmount),
+      applicationFeeAmount: Number(p.applicationFeeAmount || 0),
+      order: p.order
+        ? {
+            ...p.order,
+            platformFeeAmount: p.order.platformFeeAmount != null
+              ? Number(p.order.platformFeeAmount)
+              : undefined,
+          }
+        : p.order,
     };
   }
 }

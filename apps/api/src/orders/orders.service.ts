@@ -28,6 +28,22 @@ export class OrdersService {
   async checkout(userId: string | undefined, dto: CheckoutDto) {
     const cart = await this.cart.getOrCreate(userId, dto.guestId);
     if (!cart.items.length) throw new BadRequestException('Cart is empty');
+    if (cart.multiSeller) {
+      throw new BadRequestException(
+        'Cart contains products from multiple sellers. Checkout one seller at a time.',
+      );
+    }
+
+    const sellerId = cart.sellerId as string | null;
+    if (!sellerId) throw new BadRequestException('Cart items must belong to a seller');
+
+    const seller = await this.prisma.seller.findUnique({ where: { id: sellerId } });
+    if (!seller?.stripeAccountId) {
+      throw new BadRequestException('Seller has not connected Stripe payouts yet');
+    }
+    if (!seller.chargesEnabled && !seller.stripeAccountId.startsWith('acct_mock_')) {
+      throw new BadRequestException('Seller cannot accept payments yet');
+    }
 
     const shipping = await this.prisma.shippingMethod.findFirst({
       where: { id: dto.shippingMethodId, isActive: true },
@@ -46,6 +62,9 @@ export class OrdersService {
     const taxAmount = Math.round((cart.subtotal - discountAmount) * 0.08 * 100) / 100;
     const total =
       Math.round((cart.subtotal - discountAmount + shippingAmount + taxAmount) * 100) / 100;
+    const feePercent = Number(seller.platformFeePercent);
+    const platformFeeAmount = Math.round(total * (feePercent / 100) * 100) / 100;
+    const sellerAmount = Math.round((total - platformFeeAmount) * 100) / 100;
 
     const order = await this.prisma.$transaction(async (tx) => {
       for (const item of cart.items) {
@@ -59,6 +78,7 @@ export class OrdersService {
         data: {
           orderNumber: this.orderNumber(),
           userId,
+          sellerId,
           email: dto.email.toLowerCase(),
           status: OrderStatus.PENDING,
           subtotal: cart.subtotal,
@@ -66,6 +86,8 @@ export class OrdersService {
           shippingAmount,
           taxAmount,
           total,
+          platformFeeAmount,
+          sellerAmount,
           couponId,
           shippingMethodId: shipping.id,
           shippingName: dto.shippingName,
@@ -80,6 +102,7 @@ export class OrdersService {
           items: {
             create: cart.items.map((item: any) => ({
               variantId: item.variantId,
+              sellerId,
               productName: item.product.name,
               variantSku: item.sku,
               size: item.size,
@@ -95,10 +118,12 @@ export class OrdersService {
               amount: total,
               currency: 'usd',
               status: PaymentStatus.PENDING,
+              applicationFeeAmount: platformFeeAmount,
+              stripeAccountId: seller.stripeAccountId,
             },
           },
         },
-        include: { items: true, payment: true },
+        include: { items: true, payment: true, seller: true },
       });
 
       if (couponId) {
@@ -112,12 +137,17 @@ export class OrdersService {
       return created;
     });
 
-    const paymentIntent = await this.payments.createPaymentIntent(order.id, total);
+    const paymentIntent = await this.payments.createPaymentIntent(order.id, total, {
+      stripeAccountId: seller.stripeAccountId!,
+      applicationFeeAmount: platformFeeAmount,
+    });
 
     return {
       order: this.serialize(order),
       clientSecret: paymentIntent.clientSecret,
       publishableKey: this.payments.publishableKey,
+      platformFeeAmount,
+      sellerAmount,
     };
   }
 
@@ -129,6 +159,8 @@ export class OrdersService {
       shippingAmount: Number(order.shippingAmount),
       taxAmount: Number(order.taxAmount),
       total: Number(order.total),
+      platformFeeAmount: Number(order.platformFeeAmount || 0),
+      sellerAmount: Number(order.sellerAmount || 0),
       items: order.items?.map((i: any) => ({
         ...i,
         unitPrice: Number(i.unitPrice),
@@ -139,9 +171,28 @@ export class OrdersService {
             ...order.payment,
             amount: Number(order.payment.amount),
             refundedAmount: Number(order.payment.refundedAmount),
+            applicationFeeAmount: Number(order.payment.applicationFeeAmount || 0),
           }
         : null,
     };
+  }
+
+  async sellerOrders(sellerId: string) {
+    const orders = await this.prisma.order.findMany({
+      where: { sellerId },
+      include: { items: true, payment: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return orders.map((o) => this.serialize(o));
+  }
+
+  async sellerOrder(sellerId: string, id: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id, sellerId },
+      include: { items: true, payment: true, shippingMethod: true },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    return this.serialize(order);
   }
 
   async myOrders(userId: string) {

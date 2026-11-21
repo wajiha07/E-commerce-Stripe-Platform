@@ -18,6 +18,14 @@ export class CatalogService {
     images: { orderBy: { sortOrder: 'asc' as const } },
     variants: { where: { isActive: true }, orderBy: { size: 'asc' as const } },
     category: true,
+    seller: {
+      select: {
+        id: true,
+        storeName: true,
+        storeSlug: true,
+        status: true,
+      },
+    },
   };
 
   async list(query: ProductQueryDto, admin = false) {
@@ -52,6 +60,8 @@ export class CatalogService {
       ...(query.featured === 'true' ? { isFeatured: true } : {}),
       ...(query.bestseller === 'true' ? { isBestseller: true } : {}),
       ...(query.newArrival === 'true' ? { isNewArrival: true } : {}),
+      ...(query.sellerId ? { sellerId: query.sellerId } : {}),
+      ...(query.seller ? { seller: { storeSlug: query.seller } } : {}),
     };
 
     const orderBy: Prisma.ProductOrderByWithRelationInput =
@@ -80,11 +90,7 @@ export class CatalogService {
   async bySlug(slug: string) {
     const product = await this.prisma.product.findFirst({
       where: { slug, isActive: true },
-      include: {
-        images: { orderBy: { sortOrder: 'asc' } },
-        variants: { where: { isActive: true }, orderBy: [{ color: 'asc' }, { size: 'asc' }] },
-        category: true,
-      },
+      include: this.productInclude,
     });
     if (!product) throw new NotFoundException('Product not found');
     return product;
@@ -97,13 +103,16 @@ export class CatalogService {
         images: { orderBy: { sortOrder: 'asc' } },
         variants: { orderBy: [{ color: 'asc' }, { size: 'asc' }] },
         category: true,
+        seller: {
+          select: { id: true, storeName: true, storeSlug: true, status: true },
+        },
       },
     });
     if (!product) throw new NotFoundException('Product not found');
     return product;
   }
 
-  async create(dto: CreateProductDto) {
+  async create(dto: CreateProductDto & { sellerId?: string }) {
     return this.prisma.product.create({
       data: {
         name: dto.name,
@@ -111,6 +120,7 @@ export class CatalogService {
         description: dto.description,
         story: dto.story,
         categoryId: dto.categoryId,
+        sellerId: dto.sellerId,
         basePrice: dto.basePrice,
         compareAt: dto.compareAt,
         isFeatured: dto.isFeatured ?? false,

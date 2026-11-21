@@ -81,6 +81,11 @@ export function ProductPage() {
 
       <div className="pdp__info fade-up">
         <p className="badge">{product.category?.name}</p>
+        {product.seller ? (
+          <p className="muted" style={{ margin: '0.25rem 0 0' }}>
+            Sold by <strong>{product.seller.storeName}</strong>
+          </p>
+        ) : null}
         <h1>{product.name}</h1>
         <p className="pdp__price">
           {money(price)}

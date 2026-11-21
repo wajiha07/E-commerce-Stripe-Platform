@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -19,23 +19,48 @@ import { CmsModule } from './cms/cms.module';
 import { ReportsModule } from './reports/reports.module';
 import { SettingsModule } from './settings/settings.module';
 import { AdminModule } from './admin/admin.module';
+import { SellersModule } from './sellers/sellers.module';
+import { HealthModule } from './health/health.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { validateEnv } from './config/env.validation';
+import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 
-const webDist = join(__dirname, '..', '..', 'web', 'dist');
-const staticImports = existsSync(webDist)
+const webDistCandidates = [
+  join(__dirname, '..', '..', 'public'), // apps/api/public (Docker)
+  join(__dirname, '..', '..', '..', 'web', 'dist'), // monorepo from dist/src
+  join(process.cwd(), 'public'),
+  join(process.cwd(), '..', 'web', 'dist'),
+];
+export const WEB_DIST_PATH = webDistCandidates.find((p) =>
+  existsSync(join(p, 'index.html')),
+);
+const staticImports = WEB_DIST_PATH
   ? [
       ServeStaticModule.forRoot({
-        rootPath: webDist,
+        rootPath: WEB_DIST_PATH,
         exclude: ['/api/(.*)'],
+        serveStaticOptions: {
+          index: false,
+        },
       }),
     ]
   : [];
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validate: validateEnv,
+    }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60_000,
+        limit: process.env.NODE_ENV === 'production' ? 100 : 200,
+      },
+    ]),
     PrismaModule,
+    HealthModule,
     AuthModule,
     UsersModule,
     CatalogModule,
@@ -48,6 +73,7 @@ const staticImports = existsSync(webDist)
     CmsModule,
     ReportsModule,
     SettingsModule,
+    SellersModule,
     AdminModule,
     ...staticImports,
   ],
@@ -56,4 +82,8 @@ const staticImports = existsSync(webDist)
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestLoggerMiddleware).forRoutes('*');
+  }
+}

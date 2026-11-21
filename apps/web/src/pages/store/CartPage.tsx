@@ -38,6 +38,12 @@ export function CartPage() {
   return (
     <div className="container" style={{ padding: '3rem 0', maxWidth: 900 }}>
       <h1 style={{ marginTop: 0 }}>Your bag</h1>
+      {data?.multiSeller ? (
+        <p className="error-text">
+          Items from multiple sellers detected. Checkout supports one seller at a time — remove
+          items from extra sellers first.
+        </p>
+      ) : null}
       {!data?.items?.length ? (
         <p>
           Your bag is empty. <Link to="/shop">Continue shopping</Link>

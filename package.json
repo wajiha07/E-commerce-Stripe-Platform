@@ -13,7 +13,10 @@
     "db:migrate:dev": "npm run db:migrate:dev -w @lunaire/api",
     "db:seed": "npm run db:seed -w @lunaire/api",
     "db:generate": "npm run db:generate -w @lunaire/api",
-    "db:studio": "npm run db:studio -w @lunaire/api"
+    "db:studio": "npm run db:studio -w @lunaire/api",
+    "docker:prod": "docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build",
+    "docker:prod:down": "docker compose -f docker-compose.prod.yml down",
+    "docker:prod:logs": "docker compose -f docker-compose.prod.yml logs -f api"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

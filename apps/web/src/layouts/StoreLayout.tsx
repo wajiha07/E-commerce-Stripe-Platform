@@ -5,7 +5,7 @@ import { CartDrawer } from '../components/CartDrawer';
 import './StoreLayout.css';
 
 export function StoreLayout() {
-  const { user, logout, isStaff } = useAuth();
+  const { user, logout, isStaff, isSeller } = useAuth();
   const { itemCount, setOpen } = useCartUi();
 
   return (
@@ -22,6 +22,7 @@ export function StoreLayout() {
           </Link>
           <div className="store-header__actions">
             {isStaff ? <Link to="/admin">Admin</Link> : null}
+            {isSeller ? <Link to="/seller">Seller</Link> : <Link to="/sell">Sell</Link>}
             {user ? (
               <>
                 <Link to="/orders">Orders</Link>

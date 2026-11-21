@@ -11,6 +11,7 @@ import { CmsModule } from '../cms/cms.module';
 import { ReportsModule } from '../reports/reports.module';
 import { SettingsModule } from '../settings/settings.module';
 import { AuthModule } from '../auth/auth.module';
+import { SellersModule } from '../sellers/sellers.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { AuthModule } from '../auth/auth.module';
     CmsModule,
     ReportsModule,
     SettingsModule,
+    SellersModule,
   ],
   controllers: [AdminController],
 })

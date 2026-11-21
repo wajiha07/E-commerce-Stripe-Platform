@@ -17,6 +17,7 @@ export function LoginPage() {
     try {
       const user = await login(email, password);
       if (['ADMIN', 'MANAGER', 'SUPPORT'].includes(user.role)) navigate('/admin');
+      else if (user.role === 'SELLER') navigate('/seller');
       else navigate(from);
     } catch (err) {
       setError((err as Error).message);
@@ -49,7 +50,7 @@ export function LoginPage() {
       <p className="muted" style={{ marginTop: '1rem' }}>
         No account? <Link to="/register">Create one</Link>
       </p>
-      <p className="muted">Demo admin: admin@lunaire.test / Password123!</p>
+      <p className="muted">Demo admin: admin@lunaire.test · seller: seller@lunaire.test · Password123!</p>
     </div>
   );
 }

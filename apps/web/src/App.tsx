@@ -27,7 +27,14 @@ import { AdminCms } from './pages/admin/AdminCms';
 import { AdminReports } from './pages/admin/AdminReports';
 import { AdminSettings } from './pages/admin/AdminSettings';
 import { AdminStaff } from './pages/admin/AdminStaff';
+import { AdminSellers } from './pages/admin/AdminSellers';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { SellerLayout } from './layouts/SellerLayout';
+import { SellerOverview } from './pages/seller/SellerOverview';
+import { SellerOnboarding } from './pages/seller/SellerOnboarding';
+import { SellerProducts } from './pages/seller/SellerProducts';
+import { SellerOrders } from './pages/seller/SellerOrders';
+import { BecomeSellerPage } from './pages/seller/BecomeSellerPage';
 
 export default function App() {
   return (
@@ -45,6 +52,21 @@ export default function App() {
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
         <Route path="profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+        <Route path="sell" element={<BecomeSellerPage />} />
+      </Route>
+
+      <Route
+        path="seller"
+        element={
+          <ProtectedRoute seller>
+            <SellerLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<SellerOverview />} />
+        <Route path="onboarding" element={<SellerOnboarding />} />
+        <Route path="products" element={<SellerProducts />} />
+        <Route path="orders" element={<SellerOrders />} />
       </Route>
 
       <Route
@@ -63,6 +85,7 @@ export default function App() {
         <Route path="orders" element={<AdminOrders />} />
         <Route path="orders/:id" element={<AdminOrderDetail />} />
         <Route path="customers" element={<AdminCustomers />} />
+        <Route path="sellers" element={<AdminSellers />} />
         <Route path="payments" element={<AdminPayments />} />
         <Route path="coupons" element={<AdminCoupons />} />
         <Route path="shipping" element={<AdminShipping />} />

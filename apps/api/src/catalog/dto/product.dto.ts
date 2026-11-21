@@ -56,6 +56,14 @@ export class ProductQueryDto {
   @IsOptional()
   @IsString()
   newArrival?: string;
+
+  @IsOptional()
+  @IsString()
+  seller?: string;
+
+  @IsOptional()
+  @IsString()
+  sellerId?: string;
 }
 
 export class VariantDto {
@@ -117,6 +125,10 @@ export class CreateProductDto {
   @IsString()
   categoryId!: string;
 
+  @IsOptional()
+  @IsString()
+  sellerId?: string;
+
   @IsNumber()
   basePrice!: number;
 
@@ -173,6 +185,10 @@ export class UpdateProductDto {
   @IsOptional()
   @IsString()
   categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  sellerId?: string;
 
   @IsOptional()
   @IsNumber()
