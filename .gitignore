@@ -15,3 +15,5 @@ apps/api/prisma/*.db-journal
 uploads
 .vite
 *.tsbuildinfo
+.vercel
+.env*
