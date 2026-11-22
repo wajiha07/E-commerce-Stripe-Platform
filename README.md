@@ -1,4 +1,5 @@
 # LUNAIRE — Premium Fashion E-commerce Monolith
+Live Preview [here](https://lunaire-web-kappa.vercel.app/)
 
 Monolithic NestJS + React e-commerce **Stripe Connect platform** for **LUNAIRE**. Sellers onboard with Connect Express; checkout uses destination charges with an application fee. PostgreSQL, Prisma, customer storefront, seller portal, and admin dashboard.
 
